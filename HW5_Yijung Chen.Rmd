@@ -1,0 +1,144 @@
+---
+title: "HW5"
+author: "YI JUNG CHEN"
+date: "2019/3/19"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(modelr)
+library(purrr)
+library(lubridate)
+library(class)
+options(na.action=na.warn)
+```
+
+###1.	 p. 354(23.2.1) # 2
+
+###One way to make linear models more robust is to use a different distance measure. For example, instead of root-mean-squared distance, you could use mean-absolute distance:
+
+
+###Use optim() to fit this model to the simulated data above and compare it to the linear model.
+
+###Reference:https://github.com/cimentadaj/R4DS-Solutions/blob/master/ch18.Rmd
+###First, I created a optim(), but it told me that R can not find the make_prediction() function. Then, I refer to the GitHub website, so I realized that I need to create the make_prediction() function.
+
+###Based on the result, the intercept of optim() is 4.365, and the slope is 2.049. Compare to the linear model, the intercept is 4.221 and the slope is 2.052. The plot also shows that these two lines are almost overlapped.
+
+```{r}
+measure_distance <- function(mod, data) {
+  diff <- data$y - make_prediction(mod, data)
+  mean(abs(diff))
+}
+
+make_prediction<-function(mod,data){
+  mod[1]+mod[2]*data$x
+}
+
+#optim()
+best<-optim(c(0,0), measure_distance, data= sim1)
+best$par
+
+#linear model
+sim1_mod<-lm(y~x, data=sim1)
+coef_mod<-coef(sim1_mod)
+coef_mod
+
+#compare these two model
+sim1%>%
+  ggplot(aes(x,y))+
+  geom_point(size=2, color= "grey30") +
+  geom_abline(aes(intercept=best$par[1], slope= best$par[2])) +
+  geom_abline(aes(intercept=coef_mod[1], slope=coef_mod[2], color="red"))
+```
+
+###2.	 p. 358 (23.3.3) #1
+###Instead of using lm() to fit a straight line, you can use loess() to fit a smooth curve. Repeat the process of model fitting, grid generation, predictions, and visualisation on sim1 using loess()instead of lm(). How does the result compare to geom_smooth()?
+
+
+###loess() function means to fit a polynomial surface determined by one or more numerical predictors. loess(formula, data) is for local smooths.
+
+###geom_smooth() functions aids the eye in seeing patterns in the presence of overplotting. geom_smooth(mapping=Null, data=Null), if the data=Null which means the default, the data is inherited from the plot data as specified in the call to ggplot().
+
+###From the plot of prediction, we can know that two models are very similar, and they seem to be overlapped. Besides, from the plot of residuals, both of these two models look random, so we can assume that both two models are good models. Their residuals are very close to each other, but we can see red points which is based on the loess() model are much closer to the line of 0. Also, comparing to the linear model, loess() model has less outliers.
+```{r}
+#use loess() to create a model
+mod_loess<-loess(y~x, data = sim1)
+mod_loess
+
+#use lm() to create another model
+mod_lm<-lm(y~x, data=sim1)
+mod_lm
+
+#add predictions from the model to the dataframe
+grid_loess<-sim1%>%
+  add_predictions(mod_loess)
+
+#plot the prediction with geom_smooth()
+sim1%>%
+  ggplot(aes(x,y))+
+  geom_point()+
+  geom_line(aes(x=x, y=pred),data=grid_loess, colour="red", size=2) +
+  geom_smooth(method = "loess", colour="blue")
+
+#add two model's residuals and predictions on the original data set
+sim1<-sim1 %>%
+  add_residuals(mod_lm, var = "resid_lm") %>%
+  add_residuals(mod_loess, var= "resid_loess")
+
+#plot the residuals
+sim1 %>%
+  ggplot(aes(x=x)) +
+  geom_ref_line(h=0) +
+  geom_point(aes(y=resid_lm)) +
+  geom_point(aes(y=resid_loess, colour="red"))
+  
+```
+
+###Transformation problem
+
+###3.	Use a transformation y = a_0 + a_1 sin(x) + a_2*x to model the data and compare it to a natural spline of degree 5.  Show the plot of the data with the predicted values.  Also graph the residuals. Which do you think is better and why? 
+
+###I use the loess() to build the transformation polymodel because it is used to fit a smooth curve.
+###Based on the results, I think the transformation model is better, because it is much more fit the data points than the natural spline of degreee 5 model. Also, the outliers of polymodel are less than the the nature spline of degree 5 model. 
+```{r}
+library(splines)
+
+sim5 <- tibble(
+  x = seq(0, 3.5 * pi, length = 150),
+  y = 4 * sin(x) + rnorm(length(x))
+)
+
+sim5 %>%
+  ggplot( aes(x, y)) +
+  geom_point() 
+
+mod5<-lm(y~ns(x,5),data=sim5)
+
+#polymodel
+polymodel<-loess(y~sin(x)+x,data=sim5)
+
+###predicted value
+grid<-sim5%>%
+  data_grid(x=seq_range(x,n=50, expand=0.1)) %>%
+  gather_predictions(mod5,polymodel, .pred = "y")
+grid
+
+sim5 %>%
+  ggplot(aes(x,y)) +
+  geom_point() +
+  geom_line(data=grid, colour = "red") +
+  facet_wrap(~model)
+ 
+###residuals
+sim5 <- sim5 %>%
+gather_residuals(mod5, polymodel)
+
+sim5 %>%
+ggplot(aes(x,resid)) +
+geom_point() +
+facet_wrap(~ model)
+```
+
