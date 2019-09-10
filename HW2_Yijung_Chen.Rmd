@@ -1,0 +1,175 @@
+---
+title: "HW2"
+author: "YI JUNG CHEN"
+date: "2019/1/27"
+output: word_document
+---
+
+
+1.Describe the difference between is.finite(x) and !is.infinite(x).
+```{r}
+x<-c(2,-5,0,NA,-Inf,Inf,-sqrt(2),NaN)
+is.finite(x)
+!is.infinite(x)
+
+
+```
+
+Ans:
+From the result of is.finite() function, we know that NA, -Inf, Inf and NaN are not finite. In !is.infinite() function, we know that only -Inf and Inf are infinite, so the result shows that both -Inf and Inf are FALSE, and other elements are not infinite including the elements of NA and NaN. Therefore, there are a little difference between is.finite() and !is.infinite().
+
+2.Read the source code for dplyr::near() (Hint: to see the source code, drop the ()). How does it work?
+```{r}
+x<-sqrt(9)
+dplyr::near(9,x^2)
+
+dplyr::near
+
+#near is used to make sure that the floting number equal to each other or not
+```
+
+Ans:
+The function dplyr::near() uses to check the two numbers which are floating number are equal or not. If drop the (), the result shows tol= .Machine$double.eps^0.5. 
+
+p.302 (20.4.6) 
+4.a The last value. Should you use [ or [[?
+```{r}
+#Reference:https://stackoverflow.com/questions/33462844/what-is-the-difference-between-and-in-r
+last.value<-function(x){
+  if(length(x)){
+    x[[length(x)]]
+    }else{
+      x
+    }
+}
+last.value(1:5)
+last.value(c(1,5,6))
+last.value(character())
+last.value(c(a="doctor",b=3,5,d="j"))
+
+
+```
+
+Ans:
+I created both functions of x[length(x)] and x[[length(x)]] to see what different between them, but I still can clear understand what difference. So, I refer to this website"https://stackoverflow.com/questions/33462844/what-is-the-difference-between-and-in-r", it mentions that using[[]] can extract one element from list or dataframe. Besides, the textbook also mention this defination. For example, the last one of last.value(c(a="doctor",b=3,5,d="j")), if using [] tests the result, it shows d and "j" at same time. However, using [[]] tests the result, it only shows the value of "j". Therefore, this question wants the last value, so we should use [[]] instead of using [].
+
+4.b
+The elements at even numbered positions.
+```{r}
+#Reference:https://www.rdocumentation.org/packages/base/versions/3.5.2/topics/seq; https://github.com/jrnold/r4ds-exercise-solutions/blob/master/vectors.Rmd
+even_element<-function(x){
+  if (length(x)) {
+    x[seq_along(x)%%2==0]}  else {
+      ("odd")
+    }
+}
+even_element(1:10)
+even_element(c(1,2,3))
+even_element(1)
+even_element(c("a","b","c","d","e"))
+even_element("a")
+
+```
+
+Ans:
+I created the function of x%%2==0, but there is an error when I typed the vector of c("a","b"), it said this vector is a non-numeric. Therefore, I search the GitHub website, and find out I need to use the seq_along() function, then, I search how to use this function from other website, and this function means that taking the length from the argument length.
+
+4.c
+Every element except the last value.
+```{r}
+without_last_value<-function(x){
+  if(length(x)==0){
+    print("NULL")
+  }else{
+  x<-x[-length(x)]
+ x}
+}
+without_last_value(1:5)
+without_last_value(c(1:10))
+without_last_value(c(a="doctor",1,1:3,"student"))
+without_last_value(vector())
+without_last_value(list(a=1:3,b="abc",c=13))
+```
+
+4.d
+Only even numbers (and no missing values).
+```{r}
+even_number<-function(x){
+    if(length(x)==0) return(NULL)
+    x[x%%2==0]
+    
+}
+even_number(1:10)
+even_number(c(3,4,7,9,-2,NA))
+
+```
+
+
+5. Why is x[-which(x > 0)] not the same as x[x <= 0]?
+```{r}
+#Reference:https://github.com/jrnold/r4ds-exercise-solutions/blob/master/vectors.Rmd
+x<-c(a=-2,b=c(2,-1),5,6,NA,Inf,-Inf,NaN,0)
+
+x[-which(x > 0)]
+
+x[x <= 0]
+
+
+
+```
+
+Ans:
+From the result, we can know that the difference between these two function is NaN value. x[x<=0] shows NaN value as NA. Because NaN is not a number, asking if NaN <= 0 is not logical. Therefore, NaN just returns to NA. In addition, the which() function will only show the argument which is true. Here, the function is which(x>0) means that indexes greater than 0 will be showing in the argument, so, b1=2, 5,6,Inf will be selected. Then, -which() means drop indexes which are selected from which() function. Therefore, the argument shows that a=-2, b2=-1, NA, -Inf, NaN, 0. That's why NaN still NaN.
+
+I make a vector of x, and created these two functions to see their result. When I use x[x<=0] function, I notice that NaN return to NA. But I did not very clear understand the reason. Besides, I am not familiar with which() function. Therefore, I research GitHub website to understand these two function and to know how to use them.
+
+6. What happens when you subset with a positive integer that’s bigger than the length of the vector? What happens when you subset with a name that doesn’t exist?
+```{r}
+x<-c(a=2,b="student",c=5)
+x[1]
+x[2:5]
+x[7]
+
+#When I subset a positive integer that's bigger than the length of the vector, it will show the result of NA. 
+
+x["a"]
+x["d"]
+
+#When I subset with a name that doesn't exist, it also shows the result of NA. 
+```
+
+1. z <- list(a=c(2,4,6), b = "a rather long string", c = pi, d = list(1,2,3))
+Write commands to do each of the following:
+ Return the number pi 
+Return the number 3
+Return the vector 2,4,6
+
+```{r}
+z <- list(a=c(2,4,6), b = "a rather long string", c = pi, d = list(1,2,3))
+z[["c"]]
+z$c
+z[[4]][[3]]
+z[["d"]][[2]]
+z[["a"]]
+
+```
+
+```{r}
+x <- seq(-10, 10, by = 0.5)
+round2 <- function(x, to_even = TRUE) {
+  q <- x %/% 1
+  r <- x %% 1
+  q + (r >= 0.5)
+}
+x <- c(-12.5, -11.5, 11.5, 12.5)
+round(x)
+round2(x, to_even = TRUE)
+```
+
+```{r}
+commas <- function(...) stringr::str_c(..., collapse = ", ")
+commas(letters[1:10])
+
+commas(letters, collapse = "-")
+```
+
