@@ -1,0 +1,58 @@
+---
+title: "assignment 8"
+author: "YI JUNG CHEN"
+date: "2019/4/14"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+1.	Go to the website https://www.xcontest.org/world/en/pilots/ and pull the data off the website and put it in a tibble (I called it df) for your report where 
+
+```{r}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(tidyverse)
+library(xml2)
+library(httr)
+library(lubridate)
+library(rvest)
+library(stringi)
+```
+
+#reference:https://stackoverflow.com/questions/7195805/remove-square-brackets-from-a-string-vector
+#I refer to this website to figure out how to remove [] from the nickname. I use the gsub function to remove it.
+```{r}
+url<-"https://www.xcontest.org/world/en/pilots/"
+page <- read_html(url(url))
+
+df <- html_table(page, fill = TRUE)[[2]]
+df <- as_tibble(df)
+df
+
+#To separate the column and delete the columns we don't need 
+df1 <- df %>%
+  select(-No., -registered,-info)%>%
+  separate(`name and surname`, c("full_name", "nickname"), sep="\r\n                     ")%>%
+  separate(`open score`, c("open_score","p"),sep = " ")%>%
+  separate(`fai1_score`, c("fai1_score","p."),sep = " ")%>%
+  select(-p,-p.)
+df1
+
+#remove [] from nickname
+df1<-df1%>%
+  mutate(nickname=gsub("\\[|\\]", "", df1$nickname))
+  
+df1
+
+df1<- df1 %>%
+  mutate(open_score = as.numeric(open_score),  
+         fai1_score = as.numeric(fai1_score)
+             )
+#rename the column of num. of flights as num_flights
+names(df1)[4]<-"num_flights"
+  
+head(df1)
+```
+
