@@ -1,0 +1,216 @@
+---
+title: "HW4"
+author: "YI JUNG CHEN"
+date: "2019/3/3"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+###1. 1.	Write for loops to:
+
+###a)	Compute the mean of every column in mtcars
+
+###Reference:https://github.com/jrnold/r4ds-exercise-solutions/blob/master/iteration.Rmd
+###At begining, I create a loop, but it didn't show the column's name. Therefore, I refer to the GitHub website, and find out that it needs to use names function, so that the column's name will show on the result.
+```{r}
+library(tidyverse)
+mtcars_mean<-vector("double", ncol(mtcars))
+names(mtcars_mean)<-names(mtcars)
+for(i in seq_along(mtcars)){
+  mtcars_mean[i]<-mean(mtcars[[i]])}
+mtcars_mean
+```
+
+###b)	Determine the type of each column in nycflights13::flights.
+
+###Reference:https://github.com/jrnold/r4ds-exercise-solutions/blob/master/iteration.Rmd
+###At begining, I used character instead list, but it will show the error about more elements supplied than there are to replace, so I refer to the GitHub website which said use "list", because the class will have many values. 
+```{r}
+flights_type<-vector("list", ncol(nycflights13::flights))
+names(flights_type)<-names(nycflights13::flights)
+for(i in seq_along(nycflights13::flights)){
+  flights_type[[i]]<-typeof(nycflights13::flights[[i]])}
+flights_type
+```
+
+###c)	Compute the number of unique values in each column of iris.
+```{r}
+iris_unique<-vector("double", ncol(iris))
+names(iris_unique)<-names(iris)
+for(i in seq_along(iris)){
+  iris_unique[i]<-length(unique(iris[[i]]))}
+iris_unique
+
+
+unique(iris)
+length(iris)
+```
+
+###d)	Generate 10 random normals for each of μ = −10, 0, 10, and 100.
+
+```{r}
+mu<-list(-10, 0, 10, 100)
+output<-vector("list", length(mu))
+for(i in seq_along(mu))
+  output[[i]]<-rnorm(n=10,mean=mu[[i]])
+  output
+```
+
+###2.	Eliminate the for loop in each of the following examples by taking advantage of an existing function that works with vectors:
+
+##I search the function str_c in R, and I understand that I need to use collapse="" which means to collapse a vector of strings into a single string and it will show the same result. Besides, I also try collapse="," which will show the result as "a,b,c,d...", and collapse=NULL which will show the result as "a" "b" "c" ....
+```{r}
+###(1)
+stringr::str_c(letters, collapse = "  ")
+
+```
+
+```{r}
+###(2)
+x<-sample(100)
+sqrt(sum((x-mean(x))^2)/(length(x)-1))
+
+```
+##(x-mean(x)) will calculate each x subtract mean(x), then square each value. Using the sum function can receive the answer as doing the loop of for (i in seq_along(x)) {sd <- sd + (x[i] - mean(x)) ^ 2}.
+
+
+```{r}
+###(3)
+x<-runif(100)
+accumulate(x,`+`)
+```
+
+###p. 321 (21.3.5) #1, 3
+###1. Imagine you have a directory full of CSV files that you want to read in. You have their paths in a vector, files <- dir("data/", pattern = "\\.csv$", full.names = TRUE), and now want to read each one with read_csv(). Write the for loop that will load them into a single data frame.  You may assume that all csv files contain the same variables and formats.  Test your code by downloading the stock price .csv files from the data folder on blackboard and then print out rows 50,000 to 50,015. #use slice function
+
+###slice() function is to select the rows to keep
+###Instead of using rbind() function. Use bind_rows to combine these dataset into a single data frame.
+```{r}
+files <- dir("Stock_csv_files/", pattern = "\\.csv$", full.names = TRUE)
+data<-vector("list", length(files))
+for (i in seq_along(files)) {
+  data[[i]] <- read_csv(files[[i]])
+}
+data <- bind_rows(data)
+
+data_row<-slice(data, 50000:50015)
+data_row
+```
+
+###3. Write a function that prints the mean of each numeric column in a data frame, along with its name. For example, show_mean(iris) would print:
+```{r}
+show_mean<-function(data){
+  data<-data%>%keep(is.numeric)
+  output<-vector("list", ncol(data))
+  names(output)<-names(data)
+  for(i in seq_along(data)){
+    output[[i]]<-mean(data[[i]])
+  }
+  
+print(unlist(output), digits = 3)
+}
+show_mean(iris)
+```
+
+###p.  (21.4.1) #2
+###2. Adapt col_summary() so that it only applies to numeric columns . You may want to look at the purrr function keep.  Test your function by computing the median on the flights dataframe.
+```{r}
+library(nycflights13)
+
+col_summary<-function(df,func){
+  df<-flights%>%keep(is.numeric)                    
+  output <- vector("double", ncol(df))
+  names(output)<-names(df)
+  for(i in seq_along(df)){
+   output[[i]] <- func(df[[i]],na.rm=TRUE)
+  }
+  output
+}
+  col_summary(flights,median)
+```
+
+###p. 328-329 (21.5.3) #1,2
+###1.	Write code that uses one of the map functions to:
+###a)	Compute the mean of every column in mtcars. 
+```{r}
+map_dbl(mtcars, mean)
+```
+
+###b)	Determine the type of each column in nycflights13::flights.
+```{r}
+map(nycflights13::flights, typeof)
+```
+
+###c)	Compute the number of unique values in each column of iris.
+###Reference:https://github.com/jrnold/r4ds-exercise-solutions/blob/master/iteration.Rmd
+###At begining, I created a map function which is map_dbl(iris, length(unique)), however, it shows a different result above. I also tried a function that map_dbl(iris, length(unique(.)), but it can not show the correct result. Therefore, I search the GitHub, then I realize I need to use ~ to connect the data with length(unique()) function, and . means the current element.
+```{r}
+map_dbl(iris, ~length(unique(.)))
+```
+
+###d)	Generate 10 random normals for each of μ = −10, 0, 10, and 100.
+```{r}
+mu<-c(-10,0,10,100)
+map(mu, ~rnorm(n=10, mean(.)))
+```
+
+###2.	How can you create a single vector that for each column in a data frame indicates whether or not it’s a factor? Test on the diamonds dataset.
+```{r}
+map_lgl(diamonds, ~is.factor(.))
+```
+
+###21.7 exercises:
+
+###1. Write code to generate 6 random numbers from a normal distribution with mean of 3 and standard deviation of 0.2, 10 random numbers from a uniform distribution from 2 to 5, and 12 random numbers from a poisson distribution with a lambda of 3.5.  Set your seed to 613 at the beginning. 
+```{r}
+set.seed(613)
+fun<-list("rnorm", "runif", "rpois")
+param<-list(
+  normal_dis<-list(n=6,mean=3, sd=0.2),
+  uniform_dis<-list(n=10,min=2, max=5),
+  poisson_dis<-list(n=12, lambda=3.5)
+)
+invoke_map(fun, param)
+```
+
+###2. Combine the following datasets from Lahman:  Master, Salaries, AwardsPlayers, Batting and BattingPost.
+
+###I combine all data sets. When I knit to a word, it will show all of data sets. It is too long, so that's why I use head function to show them.
+```{r}
+df<-list(
+  Lahman::Master, Lahman::Salaries, Lahman::AwardsPlayers, Lahman::Batting, Lahman::BattingPost
+)
+head(reduce(df,full_join))
+```
+
+
+###Extra Credit (5 pts)
+Download the stock price .xlsx files from Blackboard to your data subfolder. Read in the "dividends" sheet from all .xlxs files in the data folder, add the company symbol from the filename as a new variable called Symbol and combine the data from the excel spreadsheets into one large tibble.  Then tidy the data so the head looks like:
+
+###First, I created two loops, one is to read all .xlxs data, another one is to create a new Symbol variable. But the Symbol column did not show the company name, it shows a files' direction name, for example, it will show  "Stock_xlsx_files//AFL.xlsx". Then, I realize that I need to switch each direction name to the companys' name. Therefore, it shows the different company names in different data sets.  
+```{r}
+library(dplyr)
+files2 <- dir("Stock_xlsx_files/", pattern = "\\.xlsx$",full.names = TRUE)
+
+
+data<-vector("list", length(files2))
+names(data)<-names(files2)
+
+for (i in seq_along(files2)){
+  data[[i]] <- readxl::read_xlsx(files2[[i]], sheet = "dividends")
+  
+}
+files2[1]="AFL"; files2[2]="CVX"; files2[3]="GE"; files2[4]="MMM"; files2[5]="PEP"; files2[6]="T";files2[7]="VZ"
+for(i in seq_along(data)){
+data[[i]]<-mutate(data[[i]], Symbol=(files2[[i]]))
+}
+data <- bind_rows(data)
+data
+```
+
+
+
+
