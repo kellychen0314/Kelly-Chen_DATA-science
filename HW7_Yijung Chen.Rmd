@@ -1,0 +1,216 @@
+---
+title: "HW7"
+author: "YI JUNG CHEN"
+date: "2019/4/5"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(tidytext)
+library(janeaustenr)
+library(stringr)
+library(gutenbergr)
+library(modelr)
+library(gapminder)
+library(readxl)
+library(gganimate)
+library(scales)
+```
+
+#1.	Pick three authors from Gutenberg.org and download their works.  Compare the authors.  Which two are more alike?  Some suggestions:  Mark Twain, Leo Tolstoy, Charles Dickens. 
+
+```{r}
+Mark_Twain <- gutenberg_download(c(8525,76,74))
+Leo_Tolstoy <- gutenberg_download(c(2600,43302,59195))
+Charles_Dickens <- gutenberg_download(c(968, 963,46))
+
+#Mark Twain
+tidy_Mark_Twain <- Mark_Twain %>%
+unnest_tokens(word, text) %>%
+mutate(word = str_extract(word, "[a-z']+")) %>%
+anti_join(stop_words)
+
+tidy_Mark_Twain%>%
+count(word, sort = TRUE)
+
+#Leo Tolstoy
+tidy_Leo_Tolstoy  <- Leo_Tolstoy  %>%
+unnest_tokens(word, text) %>%
+mutate(word = str_extract(word, "[a-z']+")) %>%
+anti_join(stop_words)
+
+tidy_Leo_Tolstoy%>%
+count(word, sort = TRUE)
+
+#Charles Dickens
+tidy_Charles_Dickens  <- Charles_Dickens  %>%
+unnest_tokens(word, text) %>%
+mutate(word = str_extract(word, "[a-z']+")) %>%
+anti_join(stop_words)
+
+tidy_Charles_Dickens%>%
+count(word, sort = TRUE)
+
+#Put these three authors together and add proportion in one dataset
+frequency_by_word_across_authors <- bind_rows(mutate(tidy_Mark_Twain,
+author = "Mark Twain"),
+mutate(tidy_Leo_Tolstoy, author = "Leo Tolstoy"),
+mutate(tidy_Charles_Dickens , author = "Charles Dickens")) %>%
+mutate(word = str_extract(word, "[a-z']+")) %>%
+count(author, word) %>%
+group_by(author) %>%
+mutate(proportion = n / sum(n)) %>%
+select(-n) %>%
+spread(author, proportion)
+frequency_by_word_across_authors
+
+```
+
+```{r}
+#To see the relationship between Charles Dickens and other two authors.
+frequency <- frequency_by_word_across_authors %>%
+gather(author, proportion, `Leo Tolstoy`:`Mark Twain`)
+frequency
+
+#plot
+ggplot(frequency, aes(x = proportion,
+y = `Charles Dickens`,
+color = abs(`Charles Dickens` - proportion))) +
+geom_abline(color = "gray40", lty = 2) +
+geom_jitter(alpha = 0.1, size = 2.5,
+width = 0.3, height = 0.3) +
+geom_text(aes(label = word),
+check_overlap = TRUE, vjust = 1.5) +
+scale_x_log10(labels = percent_format()) +
+scale_y_log10(labels = percent_format()) +
+scale_color_gradient(limits = c(0, 0.001),
+low = "darkslategray4",
+high = "gray75") +
+facet_wrap(~author, ncol = 2) +
+theme(legend.position="none") +
+labs(y = "Charles Dickens", x = NULL)
+
+#From the plot, it is not clear to see their relationship. We can do correlation to make sure.
+
+#do correlation between the author of Charles Dickens and Leo Tolstoy
+df_Leo_Tolstoy <- frequency[frequency$author == "Leo Tolstoy",]
+df_Leo_Tolstoy
+
+cor.test(data = df_Leo_Tolstoy, ~ proportion + `Charles Dickens`)
+
+#do correlation between the author of Charles Dickens and Mark Twain
+df_Mark_Twain <- frequency[frequency$author == "Mark Twain",]
+df_Mark_Twain 
+
+cor.test(data = df_Mark_Twain, ~ proportion + `Charles Dickens`)
+
+#From the result of correlation test, the correlation between Charles Dickens and Leo Tolstoy is 0.58698237 which is lower than the correlation between Charles Dickens and Mark Twain is 0.5901125. The authors of Charles Dickens and  Mark Twain are more alike.
+```
+
+```{r}
+#To see the relationship between Mark Twain and other two authors.
+frequency_mark <- frequency_by_word_across_authors %>%
+gather(author, proportion, `Charles Dickens`:`Leo Tolstoy`)
+frequency_mark
+
+#plot
+ggplot(frequency_mark, aes(x = proportion,
+y = `Mark Twain`,
+color = abs(`Mark Twain` - proportion))) +
+geom_abline(color = "gray40", lty = 2) +
+geom_jitter(alpha = 0.1, size = 2.5,
+width = 0.3, height = 0.3) +
+geom_text(aes(label = word),
+check_overlap = TRUE, vjust = 1.5) +
+scale_x_log10(labels = percent_format()) +
+scale_y_log10(labels = percent_format()) +
+scale_color_gradient(limits = c(0, 0.001),
+low = "darkslategray4",
+high = "gray75") +
+facet_wrap(~author, ncol = 2) +
+theme(legend.position="none") +
+labs(y = "Mark Twain", x = NULL)
+
+#From the plot, it is not clear to see their relationship. We can do correlation to make sure.
+
+#do correlation between the author of Charles Dickens and Leo Tolstoy
+df_Leo_Tolstoy.1 <- frequency_mark[frequency_mark$author == "Leo Tolstoy",]
+df_Leo_Tolstoy.1
+
+cor.test(data = df_Leo_Tolstoy.1, ~ proportion + `Mark Twain`)
+
+#do correlation between the author of Charles Dickens and Mark Twain
+df_Charles_Dickens <- frequency_mark[frequency_mark$author == "Charles Dickens",]
+df_Charles_Dickens 
+
+cor.test(data = df_Charles_Dickens, ~ proportion + `Mark Twain`)
+
+#From the result of correlation test, the correlation between Mark Twain and Leo Tolstoy is 0.5022416 which is lower than the correlation between Mark Twain and Charles Dickens is 0.5901125. The authors of Charles Dickens and Mark Twain are more alike.
+
+#Based on these two results,we can now assure that the authors of Charles Dickens and Mark Twain are more alike.
+```
+
+
+#2.	Let’s look at how the sentiment changes across the length of a book by looking at 80 lines at a time.  Compare how sentiment changes in Victor Hugo’s Les Miserables and Charles Dickens’ A Tale of Two Cities.  Look at negative vs positive sentiment.  Then pick a sentiment like joy or anger or fear or …  and see how that sentiment compares.
+```{r}
+Victor_Hugo<- gutenberg_download(135)
+Charles_Dickens<- gutenberg_download(98)
+
+#comboind these two books together in one dataset
+book_df<-bind_rows(mutate(Victor_Hugo, book = "Les Miserables"),
+                   mutate(Charles_Dickens, book = "A Tale of Two Cities"))%>%
+  group_by(book)%>%
+  mutate(linenumber = row_number(),
+         chapter = cumsum(str_detect(text,regex("chapter [\\divxlc]",
+         ignore_case = TRUE)))) %>%
+  ungroup() %>%
+  unnest_tokens(word, text)
+book_df
+tail(book_df)  
+
+
+```
+
+```{r}
+#looking at 80 lines at a time
+sentiment_80lines <- book_df %>%
+inner_join(get_sentiments("bing")) %>%
+count(book, index = linenumber %/% 80, sentiment) %>%
+spread(sentiment, n, fill = 0) %>%
+mutate(sentiment = positive - negative)
+
+#plot two books to see how sentiment changes
+sentiment_80lines %>%
+ggplot(aes(index, sentiment, fill = book)) +
+geom_col(show.legend = FALSE) +
+facet_wrap(~book, ncol = 2, scales = "free_x")
+
+#From this plot, the book of Les Miserables has more variation of positive and negative than the book of A Tale of Two Cities
+```
+
+```{r}
+# select the words from the nrc lexicon that are "trust" 
+nrctrust <- get_sentiments("nrc") %>%
+filter(sentiment == "trust")
+nrctrust
+
+trust_chapter <- book_df %>%
+inner_join(nrctrust) %>%
+group_by(book,chapter) %>%
+count()
+trust_chapter
+
+#plot "trust" sentiment to compre two books by chapeter
+trust_chapter %>%
+ggplot(aes(chapter, n)) +
+geom_line() +
+facet_wrap(~book, scales = "free_x")
+
+#At first, I use regex("^chapter [\\divxlc]") to read the chapter, but the plot show nothing. Then, I disguss with our classmates, and we all have the same situation. Then, we delete ^ of that function. It shows the results. From the results, I used a sentiment of "trust" and A Tale of Two Cities shows that after chapter 32 has more and more words of trust. Comparing to another book Les Miserables, there are not lots of word relate to sentiment of "trust".
+```
+
