@@ -1,0 +1,282 @@
+---
+title: "Homework 6"
+author: "YI JUNG CHEN"
+date: "2019/3/24"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(modelr)
+library(purrr)
+library(nycflights13)
+library(lubridate)
+```
+
+###1.	(1 pt) What do you think is the cause for the days with the highest and lowest  residual values?  Look at all days with abs(resid) > 80.
+
+###Based on the plot and table, there are some residual values greater than 80, for example, the date of 2013-05-26, 2013-07-04, and 2013-11-28, these days might be the holidays such as Chirstmas Day, Thanksgiving and Independent day. I assume that there are more day-off on these holidays.
+```{r}
+term <- function(date) {
+  cut(date, 
+    breaks = ymd(20130101, 20130301, 20130605, 20130825, 20140101),
+    labels = c("winter","spring", "summer", "fall") 
+  )
+}
+# add day of week and term to count by date
+daily <- flights %>%
+  mutate(date = make_date(year, month, day)) %>%
+  count(date) %>%
+  mutate(wday = wday(date, label = TRUE)) %>% 
+  mutate(term = term(date))
+mod1 <- lm(n ~ wday * term, data = daily)
+daily_res <- daily %>% 
+  add_residuals(mod1, "resid")
+
+#abs(resid)>80
+daily_res %>%
+  filter(abs(resid) > 80 )
+
+#plot
+daily_res%>%
+  ggplot(aes(date, resid))+
+  geom_ref_line(h=0)+geom_line(color="grey50")+
+  geom_smooth(se=FALSE, span=0.2) + scale_x_date(
+    NULL,
+    date_breaks = "1 month",
+    date_labels = "%b"
+  )
+
+```
+
+
+###2.	 (2 pts) Create a new variable that splits the wday variable into terms (seasons), but only for Saturdays, i.e. it should have Thurs, Fri, but Sat-winter, Sat-summer, Sat-spring, Sat-fall.  Use cutoff dates of March 1, June 5, Aug 25 to separate into seasons. How does this model compare with the model with every combination of wday and term? Plot both model residuals side by side.
+
+###Reference:https://github.com/cimentadaj/R4DS-Solutions/blob/master/ch19.Rmd
+###First, I create a new variable, and use if else to make Sat_term, but I can not able to provide the right answer. It always shows the error about length > 1. Therefore, I refer to the GitHub website, and I find out neet to use the ifelse().
+
+###Then, I create two plots side by side, but it is difficult to compare both plots. Therefore, I create another plot, and put two models in one plot.
+
+###From the plot, we can see that these two models are very similar, but the model of wday and term seems better than the model of Saturday_term.
+```{r}
+#create this function to split the wday variable into terms
+term <- function(date) {
+  cut(date, 
+    breaks = ymd(20130101, 20130301, 20130605, 20130825, 20140101),
+    labels = c("winter","spring", "summer", "fall") 
+  )
+  }
+  
+#split the wday variable into terms, and only for Saturday
+daily_term<-daily %>%
+  mutate(term = term(date)) %>%
+  mutate(wday=as.character(wday),
+         Sat_term=ifelse(wday == "Sat", paste(wday, "-", term), wday))
+daily_term
+
+#model
+mod1 <- lm(n ~ wday * term, data = daily)
+mod2<-lm(n~Sat_term, data=daily_term)
+
+#plot two models side by side
+
+daily_term %>%
+  add_residuals(mod1, "resid")%>%
+  ggplot(aes(date, resid))+
+  geom_line()
+
+daily_term %>%
+  add_residuals(mod2, "resid")%>%
+  ggplot(aes(date, resid))+
+  geom_line()
+
+#plot together
+daily_term %>%
+  gather_residuals(with_term= mod1, only_Sat_term=mod2)%>%
+  ggplot(aes(date, resid, colour=model))+
+  geom_line(alpha=0.75)
+
+
+```
+
+###3.	(2 pts) Create a new variable that combines the day of week, term (for Saturdays), and public holidays that you identified in number 1. What do the residuals of that model look like?  Do this first as one factor called holiday for all the dates with large absolute value residuals.  Then do it again with one factor for the high residual dates and another for the low residual dates.  Which model works better?  
+
+###Reference:https://www.officeholidays.com/countries/usa/2013.php, I refer to this website to see 2013 public holiday.
+
+###Reference:https://github.com/cimentadaj/R4DS-Solutions/blob/master/ch19.Rmd, I research this website to know how to combine the variable holidays and Sat_term. First, I create a data frame of 2013 public holiday that I identified in number 1, however, I can not clearly show the result of date when these two dataset have the same date. Therefore, I refer to this website, and I understand that it needs to use the mutate() with the case_when() so that the new data set will show the correct result in my new data of daily_holiday_2013.
+
+###After creating the data set, I make two different residuals plot to see the model. Then, I realize the model with holiday one shows better than the model with the saturday term.
+
+###Then, I made a variable to differentiate between the holiday high residuals and the holiday low residuals. I define residuals which greater than 0 is high residuals, and residuals which lower than 0 is low residuals. Using the model to plot, the plot shows that residuals decrease a lot.
+
+###Based on these two plots, both plots show that their residuals are reduce more than the plot of number 2. I think the model with predictor of predictor holiday high and low residuals is better than the model of predictor only holiday.
+```{r}
+#add holiday variable to the new data of daily_holiday_2013
+daily_holiday_2013<-
+  daily_term %>% mutate(holiday=case_when(
+    date %in% ymd(c(20130526, # Memorial Day
+                    20130704, # Independence Day
+                    20130705, # after Independence Day
+                    20130901, # Labor Day
+                    20131128, # Thanksgiving
+                    20131129, # Thanksgiving
+                    20131130, # Thanksgiving
+                    20131224, #Chirstmas Day
+                    20131225, #Christmas Day
+                    20131231)) ~ "holiday",  #Happy New Year
+                              TRUE ~ daily_term$Sat_term)) %>%
+  mutate(Sat_term=daily_term$Sat_term)
+
+daily_holiday_2013
+
+#create a model about the relationship n with new_term
+mod3<-lm(n~holiday, data=daily_holiday_2013)
+
+#plot
+daily_holiday_2013 %>%
+  add_residuals(mod3, "resid")%>%
+  ggplot(aes(date, resid))+
+  geom_line() +  scale_x_date(
+    NULL,
+    date_breaks = "1 month",
+    date_labels = "%b")
+
+daily_holiday_2013%>%
+  gather_residuals(only_Sat_terms=mod2, holidays_term=mod3)%>%
+  ggplot(aes(date, resid, colour=model))+
+  geom_line(alpha=0.75) +  scale_x_date(
+    NULL,
+    date_breaks = "1 month",
+    date_labels = "%b")
+
+#create high residual variable with positive
+daily_holiday_residual_2013<-
+  daily_term %>% mutate(holiday_high=case_when(
+    date %in% ymd(20131130)  ~ "holiday_high" , # Thanksgiving 
+                              TRUE ~ daily_term$Sat_term))
+
+#create a variable with high and low residuals
+daily_holiday_residual_2013<-
+  daily_holiday_residual_2013 %>% mutate(holiday_residual=case_when(
+    date %in% ymd(c(20130526, # Memorial Day
+                    20130704, # Independence Day
+                    20130705, # after Independence Day
+                    20130901, # Labor Day
+                    20131128, # Thanksgiving
+                    20131129, # Thanksgiving
+                    20131224, #Chirstmas Day
+                    20131225, #Christmas Day
+                    20131231 )) ~ "holiday_low", # New Years Day
+                              TRUE ~ daily_holiday_residual_2013$holiday_high))
+
+daily_holiday_residual_2013
+
+#create a model with high and low residual dates
+mod4<-lm(n~holiday_residual, data=daily_holiday_residual_2013)
+
+
+#plot
+daily_holiday_residual_2013 %>%
+  add_residuals(mod4, "resid")%>%
+  ggplot(aes(date, resid))+
+  geom_line()
+```
+
+
+##4.	(2 pts) Create a variable that contains the day of the week unless it is one of the two types you identified in the second part of number 3.  Produce a model that models n based on both that variable and the term as well as their interaction.  Plot the residuals.  
+
+###I create a model_5 which has predictors of holiday_residuals(holiday_high, holiday_low), term, and their interaction. This plot shows the residuals reduce a lot than other 4 models. Therefore, this one is really improve a lot in prediction.
+```{r}
+#create a new variable of residuals without the Sat_term
+daily_new_2013 <- 
+  daily_term %>% mutate(holiday_high=case_when(
+    date %in% ymd(20131130)  ~ "holiday_high" , # Thanksgiving 
+                              TRUE ~ daily_term$wday))
+ 
+daily_new_2013<-
+  daily_holiday_residual_2013 %>% mutate(holiday_residual=case_when(
+    date %in% ymd(c(20130526, # Memorial Day
+                    20130704, # Independence Day
+                    20130705, # after Independence Day
+                    20130901, # Labor Day
+                    20131128, # Thanksgiving
+                    20131129, # Thanksgiving
+                    20131224, #Chirstmas Day
+                    20131225, #Christmas Day
+                    20131231 )) ~ "holiday_low", # New Years Day
+                              TRUE ~ daily_new_2013$holiday_high))
+daily_new_2013
+
+#create a model 
+mod5<-lm(n~holiday_residual*term, data=daily_new_2013)
+
+#plot
+daily_new_2013 %>%
+  add_residuals(mod5, "resid")%>%
+  ggplot(aes(date, resid))+
+  geom_line() +  scale_x_date(
+    NULL,
+    date_breaks = "1 month",
+    date_labels = "%b")
+```
+
+
+###5.	(3 pts) Use what you have learned above to predict the number of flights for 2019 per day.  Print a graph that overlays the number of flights in 2013 with your number of predicted flights in 2019. How many flights do you predict for each day June 20 - July 10 of 2019?
+
+```{r}
+#create a new data set of 2019 includes variables of date, wday, and term
+from_dates <- ymd('2019-01-01')
+to_dates<-ymd("2019-12-31")
+dataset_2019<-tibble(date=(seq(from_dates, to_dates, by="days")))
+
+term_2019 <- function(date) {
+  cut(date, 
+    breaks = ymd(20190101, 20190301, 20190605, 20190825, 20200101),
+    labels = c("winter","spring", "summer", "fall") 
+  )
+}
+
+dataset_2019<-dataset_2019 %>%
+  mutate(wday = wday(date, label = TRUE)) %>% 
+  mutate(term = term_2019(date)) 
+
+dataset_2019<-
+  dataset_2019 %>% mutate(
+    holiday_residual=case_when(
+    date %in% ymd(c(20190526, # Memorial Day
+                    20190704, # Independence Day
+                    20190705, # after Independence Day
+                    20190901, # Labor Day
+                    20191128, # Thanksgiving
+                    20191129, # Thanksgiving
+                    20191130, # Thanksgiving
+                    20191224, #Chirstmas Day
+                    20191225, #Christmas Day
+                    20191231 )) ~ "holiday_low", # New Years Day
+                              TRUE ~ as.character(wday)))
+dataset_2019
+
+#using the mod5 to add prediction in 2019
+mod5<-lm(n~holiday_residual*term, data=daily_new_2013)
+
+dateset_2019_predict<-dataset_2019 %>%
+  add_predictions(mod5, "n")%>%
+  mutate(n=as.integer(n))
+
+#plot graph that overlays the number of flights in 2013 with the number of predicted flights in 2019
+ggplot(daily_new_2013, aes(wday,n))+
+  geom_boxplot()+
+  geom_point(data=dateset_2019_predict, colour="red")+
+  facet_wrap(~term)
+
+#the flights predict from June 20 to July 10 of 2019
+data_june20_july10<-filter(dateset_2019_predict[171:191,] )
+data_june20_july10
+
+```
+
+
